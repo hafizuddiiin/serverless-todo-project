@@ -5,8 +5,11 @@ import * as AWS  from 'aws-sdk'
 import * as AWSXRay from 'aws-xray-sdk'
 import * as uuid from 'uuid'
 import { attachImage } from '../../businessLogic/todos'
-import { getUserId } from '../utils'
+import { parseUserId } from "../../auth/utils"
 import { createLogger } from '../../utils/logger'
+
+import * as middy from 'middy'
+import {cors} from 'middy/middlewares'
 
 const logger = createLogger('generateUploadUrl')
 
@@ -18,15 +21,20 @@ const s3 = new XAWS.S3({
   signatureVersion: 'v4'
 })
 
-export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+export const handler: APIGatewayProxyHandler = middy(async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   logger.info('generate upload url', event)
+  const authorization = event.headers.Authorization
+  const split = authorization.split(' ')
+  const jwtToken = split[1]
+  const userId = parseUserId(jwtToken)
+
   const todoId = event.pathParameters.todoId
   const imageId = uuid.v4()
   console.log('todoId: ', todoId)
 
   attachImage(
     todoId,
-    getUserId(event),
+    userId,
     `https://${bucketName}.s3.amazonaws.com/${imageId}`
   )
 
@@ -38,12 +46,8 @@ export const handler: APIGatewayProxyHandler = async (event: APIGatewayProxyEven
 
   return {
     statusCode: 201,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Credentials': true
-    },
     body: JSON.stringify({
       uploadUrl,
     }),
   };
-}
+}).use(cors({ credentials: true }))

@@ -17,9 +17,9 @@ export async function createTodo(
 ): Promise<TodoItem> {
     const itemId = uuid.v4()
 
-    return await todoAccess.createTodo({
+    return todoAccess.createTodo({
         todoId: itemId,
-        userId: userId,
+        userId,
         name: createTodoRequest.name,
         dueDate: createTodoRequest.dueDate,
         createdAt: new Date().toISOString(),
